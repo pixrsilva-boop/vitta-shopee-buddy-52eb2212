@@ -1,4 +1,4 @@
-import { Calculator, ClipboardList, StickyNote, MessageCircle, Package } from "lucide-react";
+import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -18,6 +18,7 @@ const items = [
   { title: "Expedição Vitta", url: "/expedicao", icon: Package, emoji: "📦" },
   { title: "Organização & Tarefas", url: "/tarefas", icon: ClipboardList, emoji: "📋" },
   { title: "Bloco de Notas", url: "/notas", icon: StickyNote, emoji: "📝" },
+  { title: "Financeiro Vitta", url: "/financeiro", icon: DollarSign, emoji: "💰" },
 ];
 
 export function AppSidebar() {
