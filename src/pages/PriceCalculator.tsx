@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { MonthGoalWidget } from "@/components/MonthGoalWidget";
 
 const PriceCalculator = () => {
   const [productCost, setProductCost] = useState<string>("");
@@ -40,6 +41,9 @@ const PriceCalculator = () => {
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Month Goal Widget */}
+      <MonthGoalWidget />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-foreground">🧮 Calculadora de Preços</h1>

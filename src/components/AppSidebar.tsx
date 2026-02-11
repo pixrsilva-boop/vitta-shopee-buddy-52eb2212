@@ -1,4 +1,4 @@
-import { Calculator, ClipboardList, StickyNote } from "lucide-react";
+import { Calculator, ClipboardList, StickyNote, MessageCircle, Package } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -14,6 +14,8 @@ import {
 
 const items = [
   { title: "Calculadora de Preços", url: "/", icon: Calculator, emoji: "🧮" },
+  { title: "Respostas Rápidas", url: "/respostas", icon: MessageCircle, emoji: "💬" },
+  { title: "Expedição Vitta", url: "/expedicao", icon: Package, emoji: "📦" },
   { title: "Organização & Tarefas", url: "/tarefas", icon: ClipboardList, emoji: "📋" },
   { title: "Bloco de Notas", url: "/notas", icon: StickyNote, emoji: "📝" },
 ];
