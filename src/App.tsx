@@ -8,6 +8,8 @@ import { AppSidebar } from "@/components/AppSidebar";
 import PriceCalculator from "./pages/PriceCalculator";
 import TasksPage from "./pages/TasksPage";
 import NotesPage from "./pages/NotesPage";
+import QuickRepliesPage from "./pages/QuickRepliesPage";
+import ShippingChecklistPage from "./pages/ShippingChecklistPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ const App = () => (
               </div>
               <Routes>
                 <Route path="/" element={<PriceCalculator />} />
+                <Route path="/respostas" element={<QuickRepliesPage />} />
+                <Route path="/expedicao" element={<ShippingChecklistPage />} />
                 <Route path="/tarefas" element={<TasksPage />} />
                 <Route path="/notas" element={<NotesPage />} />
                 <Route path="*" element={<NotFound />} />
