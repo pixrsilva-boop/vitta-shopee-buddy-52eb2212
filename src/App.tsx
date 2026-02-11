@@ -11,6 +11,8 @@ import NotesPage from "./pages/NotesPage";
 import QuickRepliesPage from "./pages/QuickRepliesPage";
 import ShippingChecklistPage from "./pages/ShippingChecklistPage";
 import FinanceiroPage from "./pages/FinanceiroPage";
+import EstudioPage from "./pages/EstudioPage";
+import FornecedoresPage from "./pages/FornecedoresPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
                 <Route path="/tarefas" element={<TasksPage />} />
                 <Route path="/notas" element={<NotesPage />} />
                 <Route path="/financeiro" element={<FinanceiroPage />} />
+                <Route path="/estudio" element={<EstudioPage />} />
+                <Route path="/fornecedores" element={<FornecedoresPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
