@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical } from "lucide-react";
+import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -16,12 +17,12 @@ import {
 const DEFAULT_ITEMS = [
   { id: "calc", title: "Calculadora de Preços", url: "/", icon: Calculator, emoji: "🧮" },
   { id: "respostas", title: "Respostas Rápidas", url: "/respostas", icon: MessageCircle, emoji: "💬" },
-  { id: "expedicao", title: "Expedição Vitta", url: "/expedicao", icon: Package, emoji: "📦" },
+  { id: "expedicao", title: "Expedição", url: "/expedicao", icon: Package, emoji: "📦" },
   { id: "tarefas", title: "Organização & Tarefas", url: "/tarefas", icon: ClipboardList, emoji: "📋" },
   { id: "notas", title: "Bloco de Notas", url: "/notas", icon: StickyNote, emoji: "📝" },
-  { id: "financeiro", title: "Financeiro Vitta", url: "/financeiro", icon: DollarSign, emoji: "💰" },
-  { id: "estudio", title: "Estúdio Vitta", url: "/estudio", icon: Camera, emoji: "📸" },
-  { id: "fornecedores", title: "Gestão de Fornecedores", url: "/fornecedores", icon: Factory, emoji: "🏭" },
+  { id: "financeiro", title: "Financeiro", url: "/financeiro", icon: DollarSign, emoji: "💰" },
+  { id: "estudio", title: "Estúdio", url: "/estudio", icon: Camera, emoji: "📸" },
+  { id: "fornecedores", title: "Fornecedores", url: "/fornecedores", icon: Factory, emoji: "🏭" },
 ];
 
 const STORAGE_KEY = "vitta-sidebar-order";
@@ -30,7 +31,6 @@ const loadOrder = (): typeof DEFAULT_ITEMS => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as string[];
     if (saved.length === 0) return DEFAULT_ITEMS;
-    // Reorder based on saved IDs, append any new items not in saved order
     const map = new Map(DEFAULT_ITEMS.map((i) => [i.id, i]));
     const ordered = saved.filter((id) => map.has(id)).map((id) => map.get(id)!);
     const remaining = DEFAULT_ITEMS.filter((i) => !saved.includes(i.id));
@@ -42,6 +42,7 @@ const loadOrder = (): typeof DEFAULT_ITEMS => {
 
 export function AppSidebar() {
   const location = useLocation();
+  const { storeName, signOut } = useAuth();
   const [items, setItems] = useState(loadOrder);
 
   useEffect(() => {
@@ -60,10 +61,10 @@ export function AppSidebar() {
     <Sidebar className="border-r-0">
       <div className="p-5 pb-2">
         <h1 className="text-xl font-extrabold tracking-tight text-sidebar-primary-foreground">
-          🍊 Vitta
+          🛍️ Shopee Vendas
         </h1>
         <p className="text-xs font-semibold text-sidebar-foreground/60 tracking-wider uppercase mt-0.5">
-          Store Manager
+          {storeName || "Organização Inteligente"}
         </p>
       </div>
       <SidebarContent className="mt-4">
@@ -117,10 +118,17 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <div className="p-4 mt-auto">
+      <div className="p-4 mt-auto space-y-3">
+        <button
+          onClick={signOut}
+          className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
         <div className="rounded-xl bg-sidebar-accent/50 p-3 text-center">
           <p className="text-xs text-sidebar-foreground/60 font-medium">
-            Feito com 🧡 para Vitta
+            Feito com 🧡 para vendedores
           </p>
         </div>
       </div>
