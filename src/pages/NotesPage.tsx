@@ -1,40 +1,55 @@
 import { useState, useEffect, useCallback } from "react";
-
-const STORAGE_KEY = "vitta-notes";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NotesPage = () => {
-  const [content, setContent] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) || "";
-  });
+  const { user } = useAuth();
+  const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
+  const [loaded, setLoaded] = useState(false);
 
-  const save = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, content);
+  // Load from database
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("notes")
+      .select("content")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setContent(data?.content || "");
+        setLoaded(true);
+      });
+  }, [user]);
+
+  const save = useCallback(async () => {
+    if (!user || !loaded) return;
+    const { data } = await supabase.from("notes").select("id").eq("user_id", user.id).maybeSingle();
+    if (data) {
+      await supabase.from("notes").update({ content }).eq("user_id", user.id);
+    } else {
+      await supabase.from("notes").insert({ user_id: user.id, content });
+    }
     setSaved(true);
-  }, [content]);
+  }, [content, user, loaded]);
 
   useEffect(() => {
+    if (!loaded) return;
     setSaved(false);
-    const timeout = setTimeout(save, 800);
+    const timeout = setTimeout(save, 1000);
     return () => clearTimeout(timeout);
-  }, [content, save]);
+  }, [content, save, loaded]);
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto h-full flex flex-col">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-foreground">📝 Caderno de Estratégias da Vitta</h1>
+          <h1 className="text-3xl font-extrabold text-foreground">📝 Bloco de Notas</h1>
           <p className="text-muted-foreground mt-1 font-medium">
             Anote ideias, rascunhos de descrições, dúvidas e planos.
           </p>
         </div>
-        <span
-          className={`text-xs font-bold px-3 py-1 rounded-full transition-all ${
-            saved
-              ? "bg-success/10 text-success"
-              : "bg-accent text-accent-foreground"
-          }`}
-        >
+        <span className={`text-xs font-bold px-3 py-1 rounded-full transition-all ${saved ? "bg-success/10 text-success" : "bg-accent text-accent-foreground"}`}>
           {saved ? "✓ Salvo" : "Salvando..."}
         </span>
       </div>
@@ -48,12 +63,7 @@ const NotesPage = () => {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Comece a escrever suas ideias aqui...
-
-Exemplos:
-• Descrição para body infantil: 'Body 100% algodão, confortável e durável...'
-• Dúvida: Como funciona o frete grátis extra da Shopee?
-• Ideia: Criar kits com 3 peças com desconto progressivo"
+          placeholder="Comece a escrever suas ideias aqui..."
           className="flex-1 min-h-[500px] w-full resize-none bg-transparent px-6 py-5 text-sm font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
         />
       </div>
@@ -62,11 +72,7 @@ Exemplos:
 };
 
 function FormatHint({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-      {children}
-    </span>
-  );
+  return <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full">{children}</span>;
 }
 
 export default NotesPage;

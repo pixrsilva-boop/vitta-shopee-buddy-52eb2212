@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      notes: {
+        Row: {
+          content: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          store_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          store_name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          store_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          categories: string[]
+          created_at: string
+          id: string
+          location: string
+          name: string
+          notes: string
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          categories?: string[]
+          created_at?: string
+          id?: string
+          location?: string
+          name: string
+          notes?: string
+          phone?: string
+          user_id: string
+        }
+        Update: {
+          categories?: string[]
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          notes?: string
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          type: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          type: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
