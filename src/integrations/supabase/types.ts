@@ -35,25 +35,102 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
+      product_sizes: {
         Row: {
           created_at: string
           id: string
-          store_name: string
-          updated_at: string
+          product_id: string
+          quantity: number
+          size_label: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          store_name?: string
-          updated_at?: string
+          product_id: string
+          quantity?: number
+          size_label: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          product_id?: string
+          quantity?: number
+          size_label?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sizes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          cost: number
+          created_at: string
+          id: string
+          name: string
+          sale_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost?: number
+          created_at?: string
+          id?: string
+          name: string
+          sale_price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          id?: string
+          name?: string
+          sale_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          default_packaging_cost: number
+          fixed_fee: number
+          id: string
+          shopee_commission: number
+          store_name: string
+          tax_rate: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_packaging_cost?: number
+          fixed_fee?: number
+          id?: string
+          shopee_commission?: number
           store_name?: string
+          tax_rate?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_packaging_cost?: number
+          fixed_fee?: number
+          id?: string
+          shopee_commission?: number
+          store_name?: string
+          tax_rate?: number
           updated_at?: string
           user_id?: string
         }
