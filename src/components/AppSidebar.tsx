@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical, LogOut } from "lucide-react";
+import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical, LogOut, Settings, Archive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -21,8 +21,10 @@ const DEFAULT_ITEMS = [
   { id: "tarefas", title: "Organização & Tarefas", url: "/tarefas", icon: ClipboardList, emoji: "📋" },
   { id: "notas", title: "Bloco de Notas", url: "/notas", icon: StickyNote, emoji: "📝" },
   { id: "financeiro", title: "Financeiro", url: "/financeiro", icon: DollarSign, emoji: "💰" },
+  { id: "estoque", title: "Meu Estoque", url: "/estoque", icon: Archive, emoji: "🗃️" },
   { id: "estudio", title: "Estúdio", url: "/estudio", icon: Camera, emoji: "📸" },
   { id: "fornecedores", title: "Fornecedores", url: "/fornecedores", icon: Factory, emoji: "🏭" },
+  { id: "config", title: "Configurações", url: "/configuracoes", icon: Settings, emoji: "⚙️" },
 ];
 
 const STORAGE_KEY = "vitta-sidebar-order";
@@ -121,7 +123,7 @@ export function AppSidebar() {
       <div className="p-4 mt-auto space-y-3">
         <button
           onClick={signOut}
-          className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors active:scale-95"
         >
           <LogOut className="h-4 w-4" />
           Sair

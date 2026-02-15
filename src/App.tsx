@@ -14,6 +14,8 @@ import ShippingChecklistPage from "./pages/ShippingChecklistPage";
 import FinanceiroPage from "./pages/FinanceiroPage";
 import EstudioPage from "./pages/EstudioPage";
 import FornecedoresPage from "./pages/FornecedoresPage";
+import StockPage from "./pages/StockPage";
+import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -36,7 +38,7 @@ function ProtectedLayout() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <main className="flex-1 p-6 md:p-8 overflow-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-auto">
           <div className="md:hidden mb-4">
             <SidebarTrigger />
           </div>
@@ -47,8 +49,10 @@ function ProtectedLayout() {
             <Route path="/tarefas" element={<TasksPage />} />
             <Route path="/notas" element={<NotesPage />} />
             <Route path="/financeiro" element={<FinanceiroPage />} />
+            <Route path="/estoque" element={<StockPage />} />
             <Route path="/estudio" element={<EstudioPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
+            <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
