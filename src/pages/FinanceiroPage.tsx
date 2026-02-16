@@ -138,18 +138,26 @@ const FinanceiroPage = () => {
     const wb = XLSX.utils.book_new();
 
     // --- ABA 1: FINANCEIRO ---
+    const fmtBRL = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
     const finData = transactions.map((t) => ({
       PRODUTO: t.description.toUpperCase(),
       TIPO: t.category.toUpperCase(),
-      VALOR: t.value,
+      VALOR: fmtBRL(t.value),
       DATA: t.date,
     }));
+    // Calculate totals
+    const totalInc = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.value, 0);
+    const totalExp = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.value, 0);
+    const totalResult = totalInc - totalExp;
+    finData.push({ PRODUTO: "", TIPO: "", VALOR: "", DATA: "" });
+    finData.push({ PRODUTO: "TOTAL RECEITAS", TIPO: "", VALOR: fmtBRL(totalInc), DATA: "" });
+    finData.push({ PRODUTO: "TOTAL DESPESAS", TIPO: "", VALOR: fmtBRL(totalExp), DATA: "" });
+    finData.push({ PRODUTO: totalResult >= 0 ? "LUCRO LÍQUIDO" : "PREJUÍZO", TIPO: "", VALOR: fmtBRL(Math.abs(totalResult)), DATA: "" });
     const ws1 = XLSX.utils.json_to_sheet(finData.length > 0 ? finData : [{ PRODUTO: "Sem dados", TIPO: "", VALOR: "", DATA: "" }]);
-    // Bold headers + auto-width
     ws1["!cols"] = [
       { wch: Math.max(20, ...finData.map((r) => r.PRODUTO.length)) },
       { wch: Math.max(15, ...finData.map((r) => r.TIPO.length)) },
-      { wch: 15 },
+      { wch: 18 },
       { wch: 12 },
     ];
     XLSX.utils.book_append_sheet(wb, ws1, "FINANCEIRO");
