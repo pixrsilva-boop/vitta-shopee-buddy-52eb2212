@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingDown, TrendingUp, Wallet, Trash2, Download } from "lucide-react";
+import { TrendingDown, TrendingUp, Wallet, Trash2, Download, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -121,6 +122,78 @@ const FinanceiroPage = () => {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("Relatório exportado! 📥");
+  };
+
+  const exportExcel = async () => {
+    if (!user) return;
+    toast.info("Gerando relatório Excel...");
+
+    // Fetch suppliers and products
+    const [suppRes, prodRes, notesRes] = await Promise.all([
+      supabase.from("suppliers").select("*").eq("user_id", user.id),
+      supabase.from("products").select("*").eq("user_id", user.id),
+      supabase.from("notes").select("*").eq("user_id", user.id),
+    ]);
+
+    const wb = XLSX.utils.book_new();
+
+    // --- ABA 1: FINANCEIRO ---
+    const finData = transactions.map((t) => ({
+      PRODUTO: t.description.toUpperCase(),
+      TIPO: t.category.toUpperCase(),
+      VALOR: t.value,
+      DATA: t.date,
+    }));
+    const ws1 = XLSX.utils.json_to_sheet(finData.length > 0 ? finData : [{ PRODUTO: "Sem dados", TIPO: "", VALOR: "", DATA: "" }]);
+    // Bold headers + auto-width
+    ws1["!cols"] = [
+      { wch: Math.max(20, ...finData.map((r) => r.PRODUTO.length)) },
+      { wch: Math.max(15, ...finData.map((r) => r.TIPO.length)) },
+      { wch: 15 },
+      { wch: 12 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, "FINANCEIRO");
+
+    // --- ABA 2: FORNECEDORES ---
+    const suppData = (suppRes.data || []).map((s: any) => ({
+      EMPRESA: s.name,
+      CATEGORIA: (s.categories || []).join(", "),
+      CONTATO: s.phone,
+      LOCAL: s.location,
+    }));
+    const ws2 = XLSX.utils.json_to_sheet(suppData.length > 0 ? suppData : [{ EMPRESA: "Sem dados", CATEGORIA: "", CONTATO: "", LOCAL: "" }]);
+    ws2["!cols"] = [
+      { wch: Math.max(20, ...suppData.map((r) => r.EMPRESA.length)) },
+      { wch: Math.max(15, ...suppData.map((r) => r.CATEGORIA.length)) },
+      { wch: 18 },
+      { wch: Math.max(15, ...suppData.map((r) => r.LOCAL.length)) },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, "FORNECEDORES");
+
+    // --- ABA 3: DADOS GERAIS ---
+    const generalData: Record<string, string>[] = [];
+    (prodRes.data || []).forEach((p: any) => {
+      generalData.push({ INFO: `Produto: ${p.name}`, DETALHE: `Custo: R$${Number(p.cost).toFixed(2)} | Venda: R$${Number(p.sale_price).toFixed(2)}` });
+    });
+    (notesRes.data || []).forEach((n: any) => {
+      generalData.push({ INFO: "Anotação", DETALHE: n.content?.slice(0, 100) || "" });
+    });
+    const ws3 = XLSX.utils.json_to_sheet(generalData.length > 0 ? generalData : [{ INFO: "Espaço reservado para futuras expansões", DETALHE: "" }]);
+    ws3["!cols"] = [{ wch: 40 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, ws3, "DADOS GERAIS");
+
+    // Bold headers for all sheets
+    [ws1, ws2, ws3].forEach((ws) => {
+      const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c });
+        if (ws[addr]) ws[addr].s = { font: { bold: true } };
+      }
+    });
+
+    const today = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
+    XLSX.writeFile(wb, `Relatorio_Shopee_Vendas_${today}.xlsx`);
+    toast.success("Relatório Excel exportado! 📊");
   };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -239,9 +312,14 @@ const FinanceiroPage = () => {
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-lg text-secondary">📜 Extrato</CardTitle>
-              <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 rounded-xl active:scale-95 transition-transform">
-                <Download className="h-4 w-4" /> Baixar Relatório (CSV)
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" onClick={exportExcel} className="gap-2 rounded-xl bg-success text-success-foreground hover:bg-success/90 active:scale-95 transition-transform">
+                  <FileSpreadsheet className="h-4 w-4" /> Baixar Excel Completo
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 rounded-xl active:scale-95 transition-transform">
+                  <Download className="h-4 w-4" /> Baixar Relatório (CSV)
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
