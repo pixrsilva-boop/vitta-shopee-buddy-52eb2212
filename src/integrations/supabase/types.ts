@@ -204,7 +204,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      RELATORIO_VITTA_FINAL: {
+        Row: {
+          DATA_MOVIMENTO: string | null
+          PRODUTO: string | null
+          TIPO: string | null
+          VALOR: string | null
+        }
+        Insert: {
+          DATA_MOVIMENTO?: string | null
+          PRODUTO?: never
+          TIPO?: never
+          VALOR?: never
+        }
+        Update: {
+          DATA_MOVIMENTO?: string | null
+          PRODUTO?: never
+          TIPO?: never
+          VALOR?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
