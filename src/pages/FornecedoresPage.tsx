@@ -20,7 +20,7 @@ interface Supplier {
   notes: string;
 }
 
-const CATEGORY_OPTIONS = ["Jeans", "Malha", "Moda Praia", "Embalagem", "Acessórios", "Outros"];
+const CATEGORY_OPTIONS = ["Jeans", "Malha", "Moda Praia", "Moda Infantil", "Embalagem", "Acessórios", "Outros"];
 
 const formatPhone = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -48,9 +48,9 @@ const FornecedoresPage = () => {
       });
   }, [user]);
 
-  const resetForm = () => { setName(""); setCategories([]); setPhone(""); setLocation(""); setNotes(""); setEditing(null); };
+  const resetForm = () => { setName(""); setCategories([]); setPhone(""); setLocation(""); setNotes(""); setEditing(null); setCustomOther(""); };
   const openNew = () => { resetForm(); setOpen(true); };
-  const openEdit = (s: Supplier) => { setEditing(s); setName(s.name); setCategories(s.categories); setPhone(s.phone); setLocation(s.location); setNotes(s.notes); setOpen(true); };
+  const openEdit = (s: Supplier) => { setEditing(s); setName(s.name); setCategories(s.categories); setPhone(s.phone); setLocation(s.location); setNotes(s.notes); setCustomOther(""); setOpen(true); };
 
   const save = async () => {
     if (!name.trim()) { toast.error("Preencha o nome do fornecedor."); return; }
@@ -75,7 +75,27 @@ const FornecedoresPage = () => {
   };
 
   const whatsappUrl = (phone: string) => `https://wa.me/55${phone.replace(/\D/g, "")}`;
-  const toggleCategory = (cat: string) => setCategories((prev) => prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]);
+  const [customOther, setCustomOther] = useState("");
+  const toggleCategory = (cat: string) => {
+    if (cat === "Outros") {
+      // If removing "Outros", also clear custom; if adding, just add
+      if (categories.includes("Outros")) {
+        setCategories((prev) => prev.filter((c) => c !== "Outros" && !prev.find((p) => p !== "Outros" && !CATEGORY_OPTIONS.slice(0, -1).includes(p) && p === c)));
+        setCustomOther("");
+      } else {
+        setCategories((prev) => [...prev, "Outros"]);
+      }
+    } else {
+      setCategories((prev) => prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]);
+    }
+  };
+
+  const applyCustomOther = () => {
+    if (!customOther.trim()) return;
+    // Replace generic "Outros" with the custom value
+    setCategories((prev) => prev.map((c) => c === "Outros" ? customOther.trim() : c));
+    setCustomOther("");
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -117,7 +137,7 @@ const FornecedoresPage = () => {
           <DialogHeader><DialogTitle className="text-secondary">{editing ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Nome da Empresa *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Textil São Paulo" /></div>
-            <div className="space-y-2"><Label>Categorias</Label><div className="flex flex-wrap gap-2">{CATEGORY_OPTIONS.map((cat) => (<button key={cat} type="button" onClick={() => toggleCategory(cat)} className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${categories.includes(cat) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>{cat}</button>))}</div></div>
+            <div className="space-y-2"><Label>Categorias</Label><div className="flex flex-wrap gap-2">{CATEGORY_OPTIONS.map((cat) => (<button key={cat} type="button" onClick={() => toggleCategory(cat)} className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${categories.includes(cat) || (cat === "Outros" && categories.some(c => !CATEGORY_OPTIONS.slice(0, -1).includes(c))) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>{cat}</button>))}</div>{categories.includes("Outros") && (<div className="flex gap-2 mt-2"><Input value={customOther} onChange={(e) => setCustomOther(e.target.value)} placeholder="Especifique a categoria..." className="text-sm" /><Button type="button" size="sm" onClick={applyCustomOther} disabled={!customOther.trim()}>OK</Button></div>)}</div>
             <div className="space-y-2"><Label>Telefone / WhatsApp</Label><Input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" /></div>
             <div className="space-y-2"><Label>Localização</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ex: Brás, São Paulo" /></div>
             <div className="space-y-2"><Label>Observações</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anotações..." rows={3} /></div>
