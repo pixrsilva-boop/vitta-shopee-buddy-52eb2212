@@ -15,6 +15,7 @@ import FinanceiroPage from "./pages/FinanceiroPage";
 import EstudioPage from "./pages/EstudioPage";
 import FornecedoresPage from "./pages/FornecedoresPage";
 import StockPage from "./pages/StockPage";
+import EtiquetasPage from "./pages/EtiquetasPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
@@ -52,6 +53,7 @@ function ProtectedLayout() {
             <Route path="/estoque" element={<StockPage />} />
             <Route path="/estudio" element={<EstudioPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
+            <Route path="/etiquetas" element={<EtiquetasPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
