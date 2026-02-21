@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical, LogOut, Settings, Archive } from "lucide-react";
+import { Calculator, ClipboardList, StickyNote, MessageCircle, Package, DollarSign, Camera, Factory, GripVertical, LogOut, Settings, Archive, Tag } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -24,6 +24,7 @@ const DEFAULT_ITEMS = [
   { id: "estoque", title: "Meu Estoque", url: "/estoque", icon: Archive, emoji: "🗃️" },
   { id: "estudio", title: "Estúdio", url: "/estudio", icon: Camera, emoji: "📸" },
   { id: "fornecedores", title: "Fornecedores", url: "/fornecedores", icon: Factory, emoji: "🏭" },
+  { id: "etiquetas", title: "Etiquetas", url: "/etiquetas", icon: Tag, emoji: "🏷️" },
   { id: "config", title: "Configurações", url: "/configuracoes", icon: Settings, emoji: "⚙️" },
 ];
 
