@@ -194,10 +194,12 @@ function parse(pageData: PageData): LabelData {
   /**
    * Dado um array de itens de um lado (já ordenados por -Y, X), encontra o valor
    * logo após o label. Rejeita como valor: outros labels, CPF/CNPJ, números puros.
+   * allowCep=true: aceita exatamente 8 dígitos (CEP), usado ao buscar CEP:
    */
   const getAfterLabel = (
     items: Array<{ text: string; x: number; y: number }>,
-    labelPattern: RegExp
+    labelPattern: RegExp,
+    allowCep = false
   ): string => {
     for (let i = 0; i < items.length; i++) {
       if (labelPattern.test(items[i].text.trim())) {
@@ -208,10 +210,14 @@ function parse(pageData: PageData): LabelData {
           if (/^(NOME|ENDEREÇO|MUNICÍPIO|UF|CEP|CPF|CNPJ|REMETENTE|DESTINATÁRIO)[\s:/]/i.test(t)) continue;
           // Rejeitar linhas que SÃO só um label (ex: "CPF/CNPJ:")
           if (/^(NOME|ENDEREÇO|MUNICÍPIO|UF|CEP|CPF\/CNPJ|CPF|CNPJ):?\s*$/i.test(t)) continue;
-          // Rejeitar números puros (CPF, CNPJ, CEP soltos)
-          if (/^\d{8,}$/.test(t)) continue;
           // Rejeitar se começa com CPF/CNPJ:
           if (/^CPF\/CNPJ/i.test(t)) continue;
+          // Números puros: CEP = exatamente 8 dígitos (aceitar se allowCep)
+          // CPF = 11 dígitos, CNPJ = 14 dígitos → sempre rejeitar
+          if (/^\d+$/.test(t)) {
+            if (allowCep && t.length === 8) return t; // CEP sem formatação
+            continue; // CPF, CNPJ, ou outro número → rejeitar
+          }
           return t;
         }
       }
@@ -255,14 +261,14 @@ function parse(pageData: PageData): LabelData {
 
   const destCidade = getAfterLabel(destItems, /^MUNICÍPIO:/i);
   const destUf = getAfterLabel(destItems, /^UF:/i);
-  const destCepRaw = getAfterLabel(destItems, /^CEP:/i);
+  const destCepRaw = getAfterLabel(destItems, /^CEP:/i, true);
   const destCep = fmtCep(destCepRaw);
 
   // ── REMETENTE (lado esquerdo, X < 300) ──
   const remNomeRaw = getAfterLabel(remItems, /^NOME:/i);
   const remNome = remNomeRaw || "VITTA@STORE";
   const remEnd = getRemEnd(remItems);
-  const remCepRaw = getAfterLabel(remItems, /^CEP:/i);
+  const remCepRaw = getAfterLabel(remItems, /^CEP:/i, true);
   const remCep = fmtCep(remCepRaw);
   // Cidade e UF do remetente extraídas do campo MUNICÍPIO/UF da página 2 lado esquerdo
   const remCidade = getAfterLabel(remItems, /^MUNICÍPIO:/i) || "Mongaguá";
@@ -336,82 +342,132 @@ function parse(pageData: PageData): LabelData {
   }
 
   /* ══════════════════════════════════════════════════════
-     TABELA DE PRODUTOS — Página 2 (Declaração de Conteúdo)
-     Lógica preservada da V6, com melhorias
+     TABELA DE PRODUTOS — Extração por colunas (page2Items)
+     
+     A tabela da Declaração de Conteúdo tem colunas com X fixos:
+       X ≈ 0–100   : número do item (#)
+       X ≈ 100–400 : descrição do produto (pode ter múltiplas linhas)
+       X ≈ 400–490 : variação
+       X ≈ 490–520 : qtd
+       X ≈ 520+    : valor
+     
+     Estratégia: Identificar a zona da tabela (após "IDENTIFICAÇÃO DOS BENS"
+     e antes de "Totais"/"DECLARAÇÃO") e agrupar itens por Y para formar linhas.
   ══════════════════════════════════════════════════════ */
   let totalQtd = 1;
   let totalVal = "R$ 0,00";
-
-  const tMatch =
-    fullText.match(/Totais\s+(\d+)\s+([\d.,]+[.,]\d{2})/i) ||
-    fullText.match(/Total\s*\((\d+)\s*itens\)/i);
-  if (tMatch) {
-    totalQtd = parseInt(tMatch[1]);
-    if (tMatch[2]) totalVal = "R$ " + tMatch[2].replace(".", ",");
-  } else {
-    const valMatch = fullText.match(/R\$\s*([\d.,]+)/);
-    if (valMatch) totalVal = "R$ " + valMatch[1];
-  }
-
   const prods: ProdItem[] = [];
 
-  const decIndex = fullText.toUpperCase().indexOf("DECLARAÇÃO DE CONTEÚDO");
-  const searchArea = decIndex !== -1 ? fullText.slice(decIndex) : fullText;
-
-  let blocoTabela = "";
-  const tableMatch = searchArea.match(
-    /(?:VALOR|DESCRIÇÃO DO PRODUTO|Conteúdo)\b\s*(.+?)\s*(?:Peso Total\b|Assinatura\b|Total\s*\(|Declaro\b)/is
+  // 1. Encontrar índices de início e fim da zona da tabela no page2Items
+  const idenIdx = page2Items.findIndex((it) =>
+    /IDENTIFICAÇÃO DOS BENS/i.test(it.text)
   );
-  if (tableMatch) {
-    blocoTabela = tableMatch[1];
-  } else {
-    const fallbackMatch = searchArea.match(/(?:VALOR|DESCRIÇÃO DO PRODUTO|Conteúdo)\b\s*(.+)/is);
-    if (fallbackMatch) blocoTabela = fallbackMatch[1];
+  const totaisIdx = page2Items.findIndex((it) =>
+    /^Totais$/i.test(it.text) || /^Peso Total/i.test(it.text)
+  );
+
+  // Zona de itens da tabela: entre IDENTIFICAÇÃO DOS BENS e Totais
+  const tableItems =
+    idenIdx !== -1 && totaisIdx !== -1
+      ? page2Items.slice(idenIdx + 1, totaisIdx)
+      : [];
+
+  // 2. Extrair total da linha de Totais
+  if (totaisIdx !== -1) {
+    // Pegar o valor numérico do Totais (mesmo Y que "Totais")
+    const totaisY = page2Items[totaisIdx].y;
+    const totaisRow = page2Items.filter(
+      (it) => Math.abs(it.y - totaisY) < 5
+    );
+    // O número de itens totais (coluna Qtd ≈ X 510-520)
+    const qtdItem = totaisRow.find((it) => it.x > 490 && it.x < 530 && /^\d+$/.test(it.text.trim()));
+    if (qtdItem) totalQtd = parseInt(qtdItem.text.trim());
+    // O valor total (coluna Valor ≈ X 520+)
+    const valItem = totaisRow.find((it) => it.x >= 520 && /[\d.,]/.test(it.text));
+    if (valItem) {
+      let v = valItem.text.trim().replace(".", ",");
+      if (!v.includes(",")) v += ",00";
+      totalVal = "R$ " + v;
+    }
   }
 
-  if (blocoTabela) {
-    blocoTabela = blocoTabela
-      .replace(/VARIAÇÃO|QTD|CÓDIGO\s*\(SKU\)|Nº|DESCRIÇÃO DO PRODUTO|VALOR|Conteúdo|Item/gi, "")
-      .trim();
+  // 3. Agrupar tableItems por linhas (Y próximo = mesma linha)
+  // Ignorar linhas de cabeçalho (Nº, CÓDIGO, DESCRIÇÃO, VARIAÇÃO, QTD, VALOR)
+  const skipHeaders = /^(Nº|CÓDIGO|SKU|DESCRIÇÃO|VARIAÇÃO|QTD|VALOR|#)$/i;
 
-    const itemRegex = /(?:^|\s)(\d+)\s+(.+?)\s+(\d+)\s+([\d.,]+[.,]\d{2})(?=\s|$|\s\d+\s)/g;
-    let m;
-    let encontrou = false;
-
-    while ((m = itemRegex.exec(blocoTabela)) !== null) {
-      encontrou = true;
-      const n = m[1];
-      const rawDesc = m[2].trim();
-      let desc = rawDesc;
-      let vari = "-";
-      const qtd = m[3];
-      let val = m[4];
-
-      const varMatch = rawDesc.match(/(.*?)\s+([A-Za-z0-9À-ÿ/\s-]+,[A-Za-z0-9À-ÿ/\s-]+)$/);
-      if (varMatch) {
-        desc = varMatch[1].trim();
-        vari = varMatch[2].trim();
-      } else {
-        const colorMatch = rawDesc.match(
-          /(.*?)\s+((?:Bege|Preto|Branco|Azul|Verde|Vermelho|Rosa|Cinza|Amarelo|Lilás|Roxo|Laranja|Marrom|Sortido).*?)$/i
-        );
-        if (colorMatch) {
-          desc = colorMatch[1].trim();
-          vari = colorMatch[2].trim();
-        }
-      }
-
-      val = val.replace(".", ",");
-      if (!val.includes(",")) val += ",00";
-      if (!val.includes("R$")) val = "R$ " + val;
-
-      prods.push({ n, desc, var: vari, qtd, val });
+  // Agrupar por Y (tolerância 3px)
+  const rowsMap = new Map<number, Array<{ text: string; x: number; y: number }>>();
+  for (const it of tableItems) {
+    if (skipHeaders.test(it.text.trim())) continue;
+    // Procurar Y existente próximo
+    let foundY: number | null = null;
+    for (const ry of rowsMap.keys()) {
+      if (Math.abs(ry - it.y) < 4) { foundY = ry; break; }
     }
+    const key = foundY !== null ? foundY : it.y;
+    if (!rowsMap.has(key)) rowsMap.set(key, []);
+    rowsMap.get(key)!.push(it);
+  }
 
-    if (!encontrou) {
-      prods.push({ n: "1", desc: blocoTabela.substring(0, 150), var: "-", qtd: totalQtd, val: totalVal });
+  // Ordenar linhas por Y descendente (topo → baixo)
+  const rows = Array.from(rowsMap.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map((e) => e[1].sort((a, b) => a.x - b.x));
+
+  // 4. Montar produtos agrupando linhas contínuas de descrição
+  interface ProdBuilder {
+    n: string;
+    descParts: string[];
+    vari: string;
+    qtd: string;
+    val: string;
+  }
+  const builders: ProdBuilder[] = [];
+  let current: ProdBuilder | null = null;
+
+  for (const row of rows) {
+    // Detectar se é linha de item (tem coluna # com número pequeno no lado esquerdo)
+    const numCol = row.find((it) => it.x < 100 && /^\d+$/.test(it.text.trim()));
+    const descCols = row.filter((it) => it.x >= 100 && it.x < 400);
+    const variCol = row.find((it) => it.x >= 400 && it.x < 495);
+    const qtdCol = row.find((it) => it.x >= 495 && it.x < 530 && /^\d+$/.test(it.text.trim()));
+    const valCol = row.find((it) => it.x >= 520 && /[\d.,]/.test(it.text));
+
+    if (numCol) {
+      // Nova linha de item
+      if (current) builders.push(current);
+      current = {
+        n: numCol.text.trim(),
+        descParts: descCols.map((d) => d.text.trim()).filter(Boolean),
+        vari: variCol?.text.trim() || "-",
+        qtd: qtdCol?.text.trim() || "1",
+        val: valCol?.text.trim() || "",
+      };
+    } else if (current && descCols.length > 0 && !variCol && !qtdCol && !valCol) {
+      // Continuação da descrição (linha sem número, sem variação/qtd/valor)
+      current.descParts.push(...descCols.map((d) => d.text.trim()).filter(Boolean));
+    } else if (current && variCol && !numCol) {
+      // Linha extra com variação/qtd/valor (sem número)
+      if (current.vari === "-" && variCol) current.vari = variCol.text.trim();
+      if (current.qtd === "1" && qtdCol) current.qtd = qtdCol.text.trim();
+      if (!current.val && valCol) current.val = valCol.text.trim();
     }
-  } else {
+  }
+  if (current) builders.push(current);
+
+  // 5. Converter builders em ProdItem
+  for (const b of builders) {
+    const rawDesc = b.descParts.join(" ").trim();
+    // Formatar valor
+    let val = b.val.replace(".", ",");
+    if (!val.includes(",")) val += ",00";
+    if (!val.includes("R$")) val = "R$ " + val;
+
+    prods.push({ n: b.n, desc: rawDesc, var: b.vari, qtd: b.qtd, val });
+  }
+
+  // Fallback se não encontrou nenhum produto
+  if (prods.length === 0) {
     prods.push({ n: "1", desc: "Produtos conforme declaração", var: "-", qtd: totalQtd, val: totalVal });
   }
 
