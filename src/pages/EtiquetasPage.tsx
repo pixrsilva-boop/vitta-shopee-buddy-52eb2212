@@ -95,7 +95,7 @@ function fmtCep(s: string) {
   return s.substring(0,5) + '-' + s.substring(5);
 }
 
-// O PARSER V5 (Proteção de Endereço + Extração de Tabela Garantida)
+// O PARSER V6 (Lê a Declaração de Conteúdo da Página 2 corretamente)
 function parse(lines: string[]): LabelData {
   const fullText = lines.join(' ');
 
@@ -106,7 +106,7 @@ function parse(lines: string[]): LabelData {
   const idMatch = fullText.match(/ID pedido[:\s]*([A-Z0-9]+)/i);
   const idPedido = idMatch ? idMatch[1] : '';
 
-  // DESTINATÁRIO (Com Trava de Segurança)
+  // DESTINATÁRIO
   const iDest = lines.findIndex(l => l.toUpperCase() === 'DESTINATÁRIO' || l.toUpperCase() === 'DESTINATARIO');
   let destNome = 'Nome não encontrado';
   let destEnd = '';
@@ -164,7 +164,7 @@ function parse(lines: string[]): LabelData {
   const remUf='São Paulo';
 
   // ==============================================================
-  // TABELA DE PRODUTOS (Nova Lógica à Prova de Falhas)
+  // TABELA DE PRODUTOS (Foco total na Página 2 / Declaração)
   // ==============================================================
   let totalQtd = 1;
   let totalVal = "R$ 0,00";
@@ -183,24 +183,32 @@ function parse(lines: string[]): LabelData {
   if (fullText.includes("Nenhum produto extraido") || fullText.includes("Nenhum produto extraído")) {
       prods.push({ n: '-', desc: 'Nenhum produto extraido', var: '-', qtd: '-', val: '-' });
   } else {
+      // 1º Tentar encontrar a zona da Declaração de Conteúdo
+      let searchArea = fullText;
+      const decIndex = fullText.toUpperCase().indexOf("DECLARAÇÃO DE CONTEÚDO");
+      
+      // Se tiver página 2 (Declaração), cortamos o texto para procurar só lá e evitar duplicados da página 1
+      if (decIndex !== -1) {
+          searchArea = fullText.slice(decIndex);
+      }
+
       let blocoTabela = "";
       
-      // Busca desde a palavra VALOR ou DESCRIÇÃO até ao fim da página (ignorando linhas quebradas)
-      const tableMatch = fullText.match(/(?:VALOR|DESCRIÇÃO DO PRODUTO)\b\s*(.+?)\s*(?:Totais\b|Peso Total\b|DECLARAÇÃO\b|Assinatura\b)/i);
+      // A grande mudança: Só para quando encontrar a Assinatura ou o texto "Declaro que"
+      const tableMatch = searchArea.match(/(?:VALOR|DESCRIÇÃO DO PRODUTO|Conteúdo)\b\s*(.+?)\s*(?:Peso Total\b|Assinatura\b|Total\s*\(|Declaro\b)/i);
       
       if (tableMatch) {
           blocoTabela = tableMatch[1];
       } else {
-          // Fallback caso não encontre o rodapé exato
-          const fallbackMatch = fullText.match(/(?:VALOR|DESCRIÇÃO DO PRODUTO)\b\s*(.+)/i);
+          // Fallback
+          const fallbackMatch = searchArea.match(/(?:VALOR|DESCRIÇÃO DO PRODUTO|Conteúdo)\b\s*(.+)/i);
           if (fallbackMatch) blocoTabela = fallbackMatch[1];
       }
 
       if (blocoTabela) {
-          // Limpa cabeçalhos perdidos no meio do bloco
-          blocoTabela = blocoTabela.replace(/VARIAÇÃO|QTD|CÓDIGO \(SKU\)|Nº|DESCRIÇÃO DO PRODUTO|VALOR/gi, '').trim();
+          // Limpar os cabeçalhos que vêm escritos na Página 2
+          blocoTabela = blocoTabela.replace(/VARIAÇÃO|QTD|CÓDIGO \(SKU\)|Nº|DESCRIÇÃO DO PRODUTO|VALOR|Conteúdo|Item/gi, '').trim();
 
-          // Regex que pega [Numero] [Nome] [Qtd] [Preço]
           const itemRegex = /(?:^|\s)(\d+)\s+(.+?)\s+(\d+)\s+([\d.,]+[.,]\d{2})(?=\s|$|\s\d+\s)/g;
           let m;
           let encontrou = false;
@@ -214,7 +222,6 @@ function parse(lines: string[]): LabelData {
               let desc = rawDesc;
               let vari = "-";
               
-              // Separa a cor/variação do título principal
               const varMatch = rawDesc.match(/(.*?)\s+([A-Za-z0-9À-ÿ/\s-]+,[A-Za-z0-9À-ÿ/\s-]+)$/);
               if (varMatch) {
                   desc = varMatch[1].trim();
@@ -235,7 +242,6 @@ function parse(lines: string[]): LabelData {
           }
 
           if (!encontrou) {
-              // Se a formatação do PDF falhar, pega o bloco inteiro e não o perde!
               prods.push({ n: '1', desc: blocoTabela.substring(0, 150), var: '-', qtd: totalQtd, val: totalVal });
           }
       } else {
@@ -305,7 +311,6 @@ export default function EtiquetasPage() {
         if(acc.trim()) rawLines.push(acc.trim());
       }
 
-      // O PURIFICADOR: Remove os avisos gigantes que vêm no PDF e arruínam a tabela
       const cleanLines = rawLines.filter(l => {
           const up = l.toUpperCase();
           return !(
@@ -374,7 +379,7 @@ export default function EtiquetasPage() {
           </div>
           <div>
             <h1 className="text-xl font-extrabold tracking-tight">Etiquetas Shopee</h1>
-            <p className="text-xs font-bold text-green-500">Página 2 Extraída com Sucesso V5</p>
+            <p className="text-xs font-bold text-green-500">Página 2 Extraída com Sucesso V6</p>
           </div>
         </div>
 
@@ -418,4 +423,142 @@ export default function EtiquetasPage() {
                     </button>
                   ))}
                 </div>
-              </
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><FileDown className="h-4 w-4" /> Exportar</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {status && (
+                  <div className={`rounded-lg px-3 py-2 text-xs font-mono flex items-center gap-2 border ${status.type === "loading" ? "bg-primary/10 border-primary/30 text-primary" : status.type === "success" ? "bg-success/10 border-success/30 text-success" : status.type === "error" ? "bg-destructive/10 border-destructive/30 text-destructive" : "bg-muted border-border text-muted-foreground"}`}>
+                    {status.type === "loading" && <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />}
+                    {status.msg}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button onClick={gerar} disabled={!data || busy} className="flex-1 gap-2">
+                    ⚡ Gerar PDF
+                  </Button>
+                  <Button variant="outline" onClick={reset} size="icon"><RotateCcw className="h-4 w-4" /></Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {data && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Dados Extraídos</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {([["Rastreio", data.rastreio], ["Modal", data.modal], ["ID Pedido", data.idPedido], ["CEP Dest.", data.destCep], ["Destinatário", data.destNome], ["Remetente", data.remNome]] as [string, string][]).map(([l, v]) => (
+                      <div key={l} className={`rounded-lg bg-muted/40 px-2 py-1.5 ${l === "Destinatário" || l === "Remetente" ? "col-span-2" : ""}`}>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{l}</p>
+                        <p className="text-xs font-semibold font-mono truncate">{v || "—"}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <table className="w-full text-xs mt-2">
+                    <thead><tr className="bg-primary/10"><th className="p-1 text-left text-[9px] font-bold text-primary">#</th><th className="p-1 text-left text-[9px] font-bold text-primary">Descrição</th><th className="p-1 text-left text-[9px] font-bold text-primary">Var.</th><th className="p-1 text-left text-[9px] font-bold text-primary">Qtd</th><th className="p-1 text-left text-[9px] font-bold text-primary">Valor</th></tr></thead>
+                    <tbody>{data.prods.map((p, i) => (<tr key={i} className="border-b border-border"><td className="p-1">{p.n}</td><td className="p-1 max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap" title={p.desc}>{p.desc}</td><td className="p-1">{p.var}</td><td className="p-1">{p.qtd}</td><td className="p-1">{p.val}</td></tr>))}</tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm">Preview · Etiqueta</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-start justify-center min-h-[200px] p-4 rounded-xl border border-border bg-[repeating-conic-gradient(rgba(0,0,0,.03)_0%_25%,transparent_0%_50%)] bg-[length:16px_16px] overflow-y-auto overflow-x-auto">
+                {!data ? (
+                  <div className="text-center text-muted-foreground pt-10">
+                    <span className="text-4xl block mb-2">🏷️</span>
+                    <p className="font-semibold">Carregue um PDF</p>
+                  </div>
+                ) : (
+                  <div ref={etqRef} style={LS.root}>
+                    <div style={LS.hdr}>
+                      <div style={LS.logo}>
+                        <div style={LS.sico}>S</div>
+                        <div>
+                          <div style={LS.sname}>Shopee</div>
+                          <div style={LS.idlbl}>ID pedido:</div>
+                          <div style={LS.idval}>{data.idPedido || "—"}</div>
+                        </div>
+                      </div>
+                      <canvas ref={qrTopRef} />
+                    </div>
+                    <div style={LS.rastr}>
+                      <div style={LS.contrato}>Contrato: {data.contrato}</div>
+                      <div style={LS.modal}>{data.modal}</div>
+                      <div style={LS.cod}>{data.rastreio}</div>
+                      <div style={LS.bcMain}><svg ref={bcMainRef} /></div>
+                    </div>
+                    <div style={LS.receb}>
+                      <div style={LS.row}><span>Recebedor:</span><div style={LS.ul} /></div>
+                      <div style={LS.row}><span>Assinatura:</span><div style={LS.ul} /></div>
+                      <div style={LS.row}><span>Documento:</span><div style={LS.ul} /></div>
+                    </div>
+                    <div style={LS.tag}>DESTINATÁRIO</div>
+                    <div style={LS.dest}>
+                      <div style={LS.dnome}>{data.destNome || "—"}</div>
+                      <div style={LS.dend}>{data.destEnd || "—"}</div>
+                      <div style={LS.dbairro}>{data.destBairro}</div>
+                      <div style={LS.dciduf}>
+                        <span style={LS.dcid}>{data.destCidade}</span>
+                        <span style={LS.dcep}>{data.destCep}</span>
+                      </div>
+                      <div style={LS.duf}>{data.destUf}</div>
+                    </div>
+                    <div style={LS.bccep}><svg ref={bcCepRef} style={{ display: "block", maxWidth: 155 }} /></div>
+                    <div style={LS.tag}>REMETENTE</div>
+                    <div style={LS.rem}>
+                      <div>
+                        <div style={LS.rnome}>{data.remNome}</div>
+                        <div style={LS.rend}>{(data.remEnd || "").slice(0, 55)}</div>
+                        <div style={LS.rcid}>{data.remCidade} — {data.remUf}</div>
+                        <div style={LS.rcep}>CEP: {data.remCep}</div>
+                      </div>
+                      <canvas ref={qrRemRef} />
+                    </div>
+                    <div style={LS.btit}>IDENTIFICAÇÃO DOS BENS</div>
+                    <table style={LS.btbl}>
+                      <thead>
+                        <tr>
+                          <th style={LS.bth}>#</th>
+                          <th style={LS.bth}>Descrição do Produto</th>
+                          <th style={LS.bth}>Variação</th>
+                          <th style={LS.bth}>Qtd</th>
+                          <th style={LS.bth}>Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.prods.map((p, i) => (
+                          <tr key={i} style={{ background: i % 2 === 0 ? "#f8f8f8" : "#fff" }}>
+                            <td style={LS.btd}>{p.n}</td>
+                            <td style={{...LS.btd, whiteSpace: "normal", wordBreak: "break-word"}}><strong>{p.desc}</strong></td>
+                            <td style={LS.btd}>{p.var}</td>
+                            <td style={{...LS.btd, textAlign: "center"}}>{p.qtd}</td>
+                            <td style={{...LS.btd, textAlign: "right", fontWeight: 700}}>{p.val}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={LS.btot}>
+                      <span>Total ({Math.max(data.totalQtd, 1)} itens)</span>
+                      <span>{data.totalVal}</span>
+                    </div>
+                    <div style={LS.assin}>
+                      <div><div style={LS.aul} /><span>Assinatura do Remetente/Declarante</span></div>
+                      <div><div style={LS.dul} /><span>Data: ___/___/______</span></div>
+                    </div>
+                    <div style={LS.rod}>Shopee não é proprietário nem responsável pelos bens entregues (art.261 CP).</div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </PageTransition>
+  );
+}
