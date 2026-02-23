@@ -47,9 +47,11 @@ interface LabelData {
 
 // Estrutura interna para passar as páginas separadas ao parser
 interface PageData {
-  // Página 2: itens com texto + coordenada X (para separar REM/DEST)
+  // Página 1: itens individuais (para idPedido, rastreio, bairro)
+  page1Items: Array<{ text: string; x: number; y: number }>;
+  // Página 2: itens com texto + coordenada X (para separar REM/DEST) — JÁ ORDENADOS por (-Y, X)
   page2Items: Array<{ text: string; x: number; y: number }>;
-  // Todas as linhas (página 1 + 2) para extrair rastreio, contrato, idPedido, bairro, produtos
+  // Todas as linhas (página 1 + 2) para fullText e produtos
   allLines: string[];
   // Texto completo para regex gerais
   fullText: string;
@@ -159,13 +161,28 @@ function buildFileName(destNome: string, prodDesc: string, fmt: Fmt): string {
              e todos os dados da tabela de produtos
 ─────────────────────────────────────────────────────────────── */
 function parse(pageData: PageData): LabelData {
-  const { page2Items, allLines, fullText } = pageData;
+  const { page1Items, page2Items, allLines, fullText } = pageData;
 
   /* ── Campos globais (fullText) ── */
   const rastreio = (fullText.match(/\b([A-Z]{2}\d{9}[A-Z]{2})\b/) || [])[1] || "";
   const contrato = (fullText.match(/Contrato:\s*(\d+)/i) || [])[1] || "";
   const modal = (fullText.match(/\b(SEDEX|PAC|MINI ENVIOS|SHOPEE XPRESS)\b/i) || ["SEDEX"])[0];
-  const idPedido = (fullText.match(/ID\s*pedido[:\s]*([A-Z0-9]{8,})/i) || [])[1] || "";
+
+  // idPedido: busca em page1Items (dois itens consecutivos: "ID pedido:" + valor alfanum.)
+  // Fallback: regex no fullText
+  let idPedido = "";
+  for (let i = 0; i < page1Items.length - 1; i++) {
+    if (/^ID\s*pedido[:\s]*$/i.test(page1Items[i].text.trim())) {
+      const next = page1Items[i + 1].text.trim();
+      if (/^[A-Z0-9]{6,}$/.test(next)) { idPedido = next; break; }
+    }
+    // Às vezes "ID pedido:" e o valor vêm num único item
+    const m = page1Items[i].text.match(/ID\s*pedido[:\s]+([A-Z0-9]{6,})/i);
+    if (m) { idPedido = m[1]; break; }
+  }
+  if (!idPedido) {
+    idPedido = (fullText.match(/ID\s*pedido[:\s]*([A-Z0-9]{6,})/i) || [])[1] || "";
+  }
 
   /* ══════════════════════════════════════════════════════
      PASSAGEM A — Página 2 com coordenadas X
@@ -175,9 +192,8 @@ function parse(pageData: PageData): LabelData {
   const destItems = page2Items.filter((i) => i.x >= 300);
 
   /**
-   * Dado um array de itens de um lado, encontra o valor logo
-   * após o label (ex: "NOME:", "ENDEREÇO:", "MUNICÍPIO:", "CEP:", "UF:")
-   * Retorna a string do próximo item não-label, ou "" se não encontrar.
+   * Dado um array de itens de um lado (já ordenados por -Y, X), encontra o valor
+   * logo após o label. Rejeita como valor: outros labels, CPF/CNPJ, números puros.
    */
   const getAfterLabel = (
     items: Array<{ text: string; x: number; y: number }>,
@@ -185,12 +201,18 @@ function parse(pageData: PageData): LabelData {
   ): string => {
     for (let i = 0; i < items.length; i++) {
       if (labelPattern.test(items[i].text.trim())) {
-        // Próximo item que não é outro label
         for (let j = i + 1; j < items.length; j++) {
           const t = items[j].text.trim();
-          if (t && !/^(NOME|ENDEREÇO|MUNICÍPIO|UF|CEP|CPF|CNPJ|REMETENTE|DESTINATÁRIO):/i.test(t)) {
-            return t;
-          }
+          if (!t) continue;
+          // Rejeitar outros labels
+          if (/^(NOME|ENDEREÇO|MUNICÍPIO|UF|CEP|CPF|CNPJ|REMETENTE|DESTINATÁRIO)[\s:/]/i.test(t)) continue;
+          // Rejeitar linhas que SÃO só um label (ex: "CPF/CNPJ:")
+          if (/^(NOME|ENDEREÇO|MUNICÍPIO|UF|CEP|CPF\/CNPJ|CPF|CNPJ):?\s*$/i.test(t)) continue;
+          // Rejeitar números puros (CPF, CNPJ, CEP soltos)
+          if (/^\d{8,}$/.test(t)) continue;
+          // Rejeitar se começa com CPF/CNPJ:
+          if (/^CPF\/CNPJ/i.test(t)) continue;
+          return t;
         }
       }
     }
@@ -208,11 +230,11 @@ function parse(pageData: PageData): LabelData {
         for (let j = i + 1; j < items.length && lines.length < 2; j++) {
           const t = items[j].text.trim();
           if (!t) continue;
-          // Para quando encontrar outro label
-          if (/^(NOME|MUNICÍPIO|UF|CEP|CPF|CNPJ|REMETENTE|DESTINATÁRIO):/i.test(t)) break;
-          lines.push(t.replace(/,\s*$/, "").trim()); // remove vírgula final
+          // Para quando encontrar outro label ou CPF/CNPJ
+          if (/^(NOME|MUNICÍPIO|UF|CEP|CPF|CNPJ|REMETENTE|DESTINATÁRIO)[\s:/]/i.test(t)) break;
+          if (/^CPF\/CNPJ/i.test(t) || /^\d{8,}$/.test(t)) break;
+          lines.push(t.replace(/,\s*$/, "").trim());
         }
-        // Junta as 2 linhas: "Avenida Edwilson José do Carmo, 92" + "Mongaguá, São Paulo"
         return lines.join(", ");
       }
     }
@@ -500,6 +522,8 @@ export default function EtiquetasPage() {
 
       // Linhas de todas as páginas (para fullText, bairro, produtos)
       let allLines: string[] = [];
+      // Itens da página 1 com coordenada (para idPedido, rastreio, bairro)
+      let page1Items: Array<{ text: string; x: number; y: number }> = [];
       // Itens da página 2 com coordenada X (para separação REM/DEST)
       let page2Items: Array<{ text: string; x: number; y: number }> = [];
 
@@ -507,18 +531,16 @@ export default function EtiquetasPage() {
         const page = await pdf.getPage(pageNum);
         const tc = await page.getTextContent();
 
-        if (pageNum === 2) {
-          // Página 2: salvar itens individuais COM coordenada X
-          // transform[4] = x, transform[5] = y no espaço do PDF
-          tc.items.forEach((item: any) => {
-            const text = (item.str || "").trim();
-            if (text) {
-              const x = item.transform ? item.transform[4] : 0;
-              const y = item.transform ? item.transform[5] : 0;
-              page2Items.push({ text, x, y });
-            }
-          });
-        }
+        // Capturar itens individuais com coordenadas para páginas 1 e 2
+        tc.items.forEach((item: any) => {
+          const text = (item.str || "").trim();
+          if (text) {
+            const x = item.transform ? item.transform[4] : 0;
+            const y = item.transform ? item.transform[5] : 0;
+            if (pageNum === 1) page1Items.push({ text, x, y });
+            if (pageNum === 2) page2Items.push({ text, x, y });
+          }
+        });
 
         // Todas as páginas: reconstruir linhas via hasEOL
         let acc = "";
@@ -533,6 +555,12 @@ export default function EtiquetasPage() {
         });
         if (acc.trim()) allLines.push(acc.trim());
       }
+
+      // CRÍTICO: Ordenar page2Items por Y descendente, depois X ascendente
+      // pdfjs entrega em ordem de renderização — precisamos de ordem visual (topo→baixo, esq→dir)
+      page2Items.sort((a, b) => b.y - a.y || a.x - b.x);
+      // Ordenar page1Items da mesma forma
+      page1Items.sort((a, b) => b.y - a.y || a.x - b.x);
 
       // Filtrar ruído legal da Shopee
       const noisePatterns = [
@@ -559,7 +587,7 @@ export default function EtiquetasPage() {
       });
 
       const fullText = cleanLines.join(" ");
-      const pageData: PageData = { page2Items, allLines: cleanLines, fullText };
+      const pageData: PageData = { page1Items, page2Items, allLines: cleanLines, fullText };
 
       const d = parse(pageData);
       setData(d);
