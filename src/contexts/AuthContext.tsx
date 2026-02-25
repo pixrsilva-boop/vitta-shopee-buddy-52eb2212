@@ -12,21 +12,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Verificar sessão atual imediatamente
-    const initialize = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        setSession(data.session);
-      } catch (error) {
-        console.error("Erro ao recuperar sessão:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-    initialize();
-
-    // 2. Ouvir mudanças (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
