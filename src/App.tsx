@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+
+// Importação das Páginas (Verifique se os nomes dos arquivos estão corretos no seu GitHub)
 import Index from "./pages/Index";
 import StockPage from "./pages/StockPage";
 import FinanceiroPage from "./pages/FinanceiroPage";
@@ -21,10 +23,18 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Componente de Proteção de Rota com fallback de carregamento
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
-  if (loading) return <div className="h-screen flex items-center justify-center">Carregando...</div>;
-  if (!session) return <Navigate to="/auth" replace />;
+  
+  if (loading) {
+    return <div className="h-screen w-screen flex items-center justify-center font-sans text-orange-600">Carregando Vitta Store...</div>;
+  }
+  
+  if (!session) {
+    return <Navigate to="/auth" replace />;
+  }
+  
   return <>{children}</>;
 };
 
@@ -37,6 +47,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            
+            {/* Rotas Protegidas */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><FinanceiroPage /></ProtectedRoute>} />
@@ -49,6 +61,7 @@ const App = () => (
             <Route path="/estudio" element={<ProtectedRoute><EstudioPage /></ProtectedRoute>} />
             <Route path="/respostas" element={<ProtectedRoute><QuickRepliesPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
