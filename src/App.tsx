@@ -3,70 +3,87 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-
-// Importação das Páginas (Verifique se os nomes dos arquivos estão corretos no seu GitHub)
-import Index from "./pages/Index";
-import StockPage from "./pages/StockPage";
-import FinanceiroPage from "./pages/FinanceiroPage";
-import SettingsPage from "./pages/SettingsPage";
-import AuthPage from "./pages/AuthPage";
-import FornecedoresPage from "./pages/FornecedoresPage";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import PriceCalculator from "./pages/PriceCalculator";
-import EtiquetasPage from "./pages/EtiquetasPage";
-import ShippingChecklistPage from "./pages/ShippingChecklistPage";
 import TasksPage from "./pages/TasksPage";
 import NotesPage from "./pages/NotesPage";
-import EstudioPage from "./pages/EstudioPage";
 import QuickRepliesPage from "./pages/QuickRepliesPage";
+import ShippingChecklistPage from "./pages/ShippingChecklistPage";
+import FinanceiroPage from "./pages/FinanceiroPage";
+import EstudioPage from "./pages/EstudioPage";
+import FornecedoresPage from "./pages/FornecedoresPage";
+import StockPage from "./pages/StockPage";
+import NovaEtiqueta from "./pages/NovaEtiqueta";
+import SettingsPage from "./pages/SettingsPage";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Componente de Proteção de Rota com fallback de carregamento
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
-  
+function ProtectedLayout() {
+  const { user, loading } = useAuth();
+
   if (loading) {
-    return <div className="h-screen w-screen flex items-center justify-center font-sans text-orange-600">Carregando Vitta Store...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground font-semibold">Carregando...</p>
+      </div>
+    );
   }
-  
-  if (!session) {
-    return <Navigate to="/auth" replace />;
-  }
-  
-  return <>{children}</>;
-};
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <main className="flex-1 p-4 md:p-8 overflow-auto">
+          <div className="md:hidden mb-4">
+            <SidebarTrigger />
+          </div>
+          <Routes>
+            <Route path="/" element={<PriceCalculator />} />
+            <Route path="/respostas" element={<QuickRepliesPage />} />
+            <Route path="/expedicao" element={<ShippingChecklistPage />} />
+            <Route path="/tarefas" element={<TasksPage />} />
+            <Route path="/notas" element={<NotesPage />} />
+            <Route path="/financeiro" element={<FinanceiroPage />} />
+            <Route path="/estoque" element={<StockPage />} />
+            <Route path="/estudio" element={<EstudioPage />} />
+            <Route path="/fornecedores" element={<FornecedoresPage />} />
+            <Route path="/etiquetas" element={<NovaEtiqueta />} />
+            <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AuthRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/" replace />;
+  return <AuthPage />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            
-            {/* Rotas Protegidas */}
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
-            <Route path="/financeiro" element={<ProtectedRoute><FinanceiroPage /></ProtectedRoute>} />
-            <Route path="/fornecedores" element={<ProtectedRoute><FornecedoresPage /></ProtectedRoute>} />
-            <Route path="/calculadora" element={<ProtectedRoute><PriceCalculator /></ProtectedRoute>} />
-            <Route path="/etiquetas" element={<ProtectedRoute><EtiquetasPage /></ProtectedRoute>} />
-            <Route path="/expedicoes" element={<ProtectedRoute><ShippingChecklistPage /></ProtectedRoute>} />
-            <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-            <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
-            <Route path="/estudio" element={<ProtectedRoute><EstudioPage /></ProtectedRoute>} />
-            <Route path="/respostas" element={<ProtectedRoute><QuickRepliesPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
+            <Route path="/login" element={<AuthRoute />} />
+            <Route path="/*" element={<ProtectedLayout />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
