@@ -21,18 +21,10 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Componente de Proteção de Rota otimizado
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="h-screen w-screen flex items-center justify-center">Carregando...</div>;
-  }
-  
-  if (!session) {
-    return <Navigate to="/auth" replace />;
-  }
-  
+  if (loading) return <div className="h-screen flex items-center justify-center">Carregando...</div>;
+  if (!session) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
 
@@ -44,10 +36,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rota de Auth: Se já tiver sessão, joga para a Home */}
             <Route path="/auth" element={<AuthPage />} />
-            
-            {/* Rotas Protegidas */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><FinanceiroPage /></ProtectedRoute>} />
@@ -60,7 +49,6 @@ const App = () => (
             <Route path="/estudio" element={<ProtectedRoute><EstudioPage /></ProtectedRoute>} />
             <Route path="/respostas" element={<ProtectedRoute><QuickRepliesPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
