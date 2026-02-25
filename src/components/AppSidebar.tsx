@@ -47,7 +47,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Vitta Shopee Buddy</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-orange-600 font-bold">VITTA STORE</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -61,12 +61,11 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Grupo Unificado de Ferramentas */}
               <Collapsible className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
-                      <Wrench className="w-5 h-5" />
+                      <Wrench className="w-5 h-5 text-slate-500" />
                       <span>Ferramentas</span>
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
