@@ -1,27 +1,12 @@
 import { 
-  LayoutDashboard, 
-  Package, 
-  CircleDollarSign, 
-  Wrench, 
-  ClipboardCheck, 
-  CheckSquare, 
-  StickyNote, 
-  Camera, 
-  MessageSquare,
-  Settings
+  LayoutDashboard, Package, CircleDollarSign, Wrench, 
+  ClipboardCheck, CheckSquare, StickyNote, Camera, 
+  MessageSquare, Settings, Printer, Calculator, Users 
 } from "lucide-react";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "react-router-dom";
@@ -30,9 +15,12 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Estoque", url: "/stock", icon: Package },
   { title: "Financeiro", url: "/financeiro", icon: CircleDollarSign },
+  { title: "Fornecedores", url: "/fornecedores", icon: Users },
 ];
 
 const toolItems = [
+  { title: "Impressão Etiquetas", url: "/etiquetas", icon: Printer },
+  { title: "Calculadora Lucro", url: "/calculadora", icon: Calculator },
   { title: "Expedições", url: "/expedicoes", icon: ClipboardCheck },
   { title: "Tarefas", url: "/tasks", icon: CheckSquare },
   { title: "Bloco de Notas", url: "/notes", icon: StickyNote },
@@ -65,9 +53,9 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
-                      <Wrench className="w-5 h-5 text-slate-500" />
+                      <Wrench className="w-5 h-5" />
                       <span>Ferramentas</span>
-                    </SidebarMenuButton>
+                    </Wrench>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
